@@ -9,62 +9,52 @@ function getSubjectInfo(varargin)
 
 % parse input arguments
 ip = inputParser;
-ip.addParamValue('components', [], @(x) ismatrix(x));
-ip.addParamValue('name', 'Input Subject Info', @(x) isstring(x));
+ip.addParamValue('components', struct('name','sub_num','type','textinput','label','Subject Number','value',''), @(x) isstruct(x));
+ip.addParamValue('win_name', 'Input Subject Info', @(x) isstring(x));
+
 parse(ip,varargin{:}); 
-s = ip.Results;
+s = ip.Results.components;
 margin = 10;
 padding = 5;
-btn_size = 30;
+BTN_size = 30;
+TI_size = 30;
+DD_size = 30;
+CHK_size = 20;
+label_size = 20;
 
+table = {'textinput','edit'; 'check','checkbox';'dropdown','popup'};
 % figure out correct size
-TI_fnames = fieldnames(s.components.('textinput'));
-    % DD_fnames = fieldnames(s.components.('dropdown'));
-TI_size_sum =[10,225];
-R_fnames = fieldnames(s.components.('radio'));
-R_size_sum =[10,225];
-for j = 1:(numel(TI_fnames))% + numel(DD_fnames))
-    if strcmpi('height',fieldnames(s.components.('textinput').(TI_fnames{j})));
-        TI_size_sum(1) = TI_size_sum(1) +s.components.('textinput').(TI_fnames{j}).('height') + 20; %20px for title
-    else
-        s.components.('textinput').(TI_fnames{j}).height = 30;
-        TI_size_sum(1) = TI_size_sum(1) +50;
-    end
-end
-R_size_sum(1) = R_size_sum(1) + 20* numel(R_fnames);
-height = TI_size_sum(1) + R_size_sum(1) + btn_size + padding; 
-width = max([TI_size_sum(2), R_size_sum(2)]);
+height = ((TI_size+label_size)*sum(strcmpi('textinput',{s.type}))) + (CHK_size*sum(strcmpi('check',{s.type}))) + ...
+            ((DD_size+label_size)*sum(strcmpi('dropdown',{s.type}))) + BTN_size + (3*margin);
+width = 200;
 
 % create figure 
-if strcmp('win_name',fieldnames(s.components))
-    t = s.components.('win_name');
-else
-    t = 'Get Subject Info';
-end
+t = ip.Results.win_name;
 dims =  get(0, 'ScreenSize');
 fig = dialog('Name',t,'Position',[(dims(3)/2) + width/2, (dims(4)/2) + height/2, width, height], 'ToolBar','None','MenuBar','none', ...
     'NumberTitle','off','Visible','off');
-offset= 0;
+
 % add elements to fig
-for i=1:numel(TI_fnames)
-    uicontrol(fig,'Style','text','String',s.components.textinput.(TI_fnames{i}).label, ... 
-        'Position',[margin, height - offset - margin - 20, width-2*margin, 20], ...
-        'Horiz','left')
-    uicontrol(fig,'Style','edit','Horiz','left','Backgr','w', 'FontSize', 11, ...
-        'Position',[margin, height - offset - padding - 20 - s.components.textinput.(TI_fnames{i}).height, ...
-                    width-2*margin, s.components.textinput.(TI_fnames{i}).height])
-    offset = offset +  s.components.textinput.(TI_fnames{j}).height + 20;
-end    
-for i=1:numel(R_fnames)
-    uicontrol(fig,'Style','checkbox','String',s.components.radio.(R_fnames{i}).label, ... 
-        'Position',[margin, height - offset - margin - 20, width-2*margin, 20], ...
-        'Val',0)
-    offset = offset + 20;
+offset= 0;
+for i=1:numel(s)
+    if any(strcmp(s(i).type, {'textinput','dropdown'}))
+        uicontrol(fig,'Style','text','String',s(i).label, 'Horiz','left', ... 
+            'Position',[margin, height - offset - margin - label_size, width-2*margin, label_size])
+        uicontrol(fig,'Style',table{strcmpi(s(i).type,table(:,1)),2}, 'Horiz','left','Backgr','w', ...
+            'FontSize', 11,  'String', s(i).values, ...
+            'Position',[margin, height - offset - padding - label_size - TI_size, ...
+                        width-2*margin, TI_size])
+        offset = offset +  50;
+    else
+       uicontrol(fig,'Style','checkbox','String',s(i).label,'Val',s(i).values, ... 
+        'Position',[margin, height - offset - margin - CHK_size, width-2*margin, CHK_size])
+        offset = offset + 20;
+    end
 end    
 
 uicontrol(fig, 'Style','pushbutton','String','Run', ...
-          'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, btn_size]) 
+          'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, BTN_size]) 
 uicontrol(fig, 'Style','pushbutton','String','Cancel', ...
-          'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, btn_size])       
+          'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, BTN_size])       
 set(fig,'Visible','on');
 a=2; % debug point =)
