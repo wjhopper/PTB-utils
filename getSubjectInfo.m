@@ -63,6 +63,8 @@ for i=1:numel(R_fnames)
 end    
 
 uicontrol(fig, 'Style','pushbutton','String','Run', ...
-          'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, btn_size]) 
+          'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, btn_size]) 
+uicontrol(fig, 'Style','pushbutton','String','Cancel', ...
+          'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, btn_size])       
 set(fig,'Visible','on');
 a=2; % debug point =)
