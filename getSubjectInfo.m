@@ -36,23 +36,25 @@ fig = dialog('Name',t,'Position',[(dims(3)/2) + width/2, (dims(4)/2) + height/2,
 
 % add elements to fig
 offset= 0;
-
+value_objs=[];
+string_objs=[];
+drop_objs=[];
 for i=1:numel(s)
     if any(strcmp(s(i).type, {'textinput','dropdown'}))
-        uicontrol(fig,'Style','text','String',s(i).label, 'Horiz','left','Tag',s(i).name,  ... 
+        uicontrol(fig,'Style','text','String',s(i).label, 'Horiz','left','Tag',[ s(i).name '_lab'],  ... 
             'Position',[margin, height - offset - margin - label_size, width-2*margin, label_size]); %#ok<*AGROW>
         a = uicontrol(fig,'Style',table{strcmpi(s(i).type,table(:,1)),2}, 'Horiz','left','Backgr','w', ...
             'FontSize', 11,  'String', s(i).values, 'Tag',s(i).name, ...
             'Position',[margin, height - offset - padding - label_size - TI_size, ...
                         width-2*margin, TI_size]);
         if strcmp(s(i).type, 'textinput')
-            string_objs(i)=a;
+            string_objs(end+1)=a;
         else
-            drop_objs(i)=a;
+            drop_objs(end+1)=a;
         end
         offset = offset +  50;
     else
-       value_objs(i) = uicontrol(fig,'Style','checkbox','String',s(i).label,'Val',s(i).values,'Tag',s(i).name, ... 
+       value_objs(end+1) = uicontrol(fig,'Style','checkbox','String',s(i).label,'Val',s(i).values,'Tag',s(i).name, ... 
         'Position',[margin, height - offset - margin - CHK_size, width-2*margin, CHK_size]);
         offset = offset + 20;
     end
