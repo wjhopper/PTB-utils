@@ -24,7 +24,7 @@ TI_size = 30;
 DD_size = 30;
 CHK_size = 20;
 label_size = 20;
-table = {'textinput',{'edit',TI_size}; 'check',{'checkbox',CHK_size};'dropdown',{'popup',DD_size}};
+table = {'textinput',{'edit',TI_size}; 'check',{'checkbox',CHK_size};'dropdown',{'popupmenu',DD_size}};
 height = BTN_size + (3*margin);
 width = 200;
 
@@ -57,9 +57,21 @@ for i=1:numel(s)
         lab = s{i}.label;
     else
         lab = ['Field' num2str(i)];
+         s{i}.label = lab;
     end
-% if its a drop down or text input field, give it a title and check its values setting 
-    if any(strcmp(s{i}.type, {'edit','popup'}))
+    
+    if any(strcmp('mustbe',fieldnames(s{i})))
+        props.callback = {@interact, s{i}};
+    end
+    
+% if its a drop down or text input field, give it a title and check its
+% values setting, and assign its other properties
+    if any(strcmp(s{i}.type, {'edit','popupmenu'}))
+        props.Horiz ='left';
+        props.Background ='w';
+        props.FontSize= 11;
+        props.Tag = s{i}.name;
+        props.Position = [margin, height - offset - padding - label_size - TI_size, width-2*margin, TI_size];
         title_obs(i) = uicontrol(fig,'Style','text','String',lab, 'Horiz','left','Tag',[ s{i}.name '_lab'],  ... 
                         'Position',[margin, height - offset - margin - label_size, width-2*margin, label_size]); %#ok<*AGROW>
         if any(strcmp('values',fieldnames(s{i})))
@@ -67,15 +79,13 @@ for i=1:numel(s)
         else
             vals= [];
         end 
-        props= struct('Horiz','left','Backgr','w', 'FontSize', 11, 'Tag',s{i}.name, ...
-            'Position',[margin, height - offset - padding - label_size - TI_size, width-2*margin, TI_size]);
     end
     
     if strcmp(s{i}.type, 'edit')
         string_objs(i) = uicontrol(fig,props,'Style','edit', 'String', vals);
         offset = offset +  TI_size + label_size;
-    elseif strcmp(s{i}.type, 'popup')
-        drop_objs(i) = uicontrol(fig,props,'Style','popup', 'String', vals);
+    elseif strcmp(s{i}.type, 'popupmenu')
+        drop_objs(i) = uicontrol(fig,props,'Style','popupmenu', 'String', vals);
         offset = offset +  DD_size + label_size;
     else
         if any(strcmp('value',fieldnames(s{i})))
@@ -83,9 +93,9 @@ for i=1:numel(s)
         else
             vals= 0;
         end
-        value_objs(end+1) = uicontrol(fig,'Style','checkbox','String',s{i}.label,'Val',s{i}.values,'Tag',s{i}.name, ...
+        value_objs(end+1) = uicontrol(fig,props,'Style','checkbox','String',s{i}.label,'Val',s{i}.values,'Tag',s{i}.name, ...
         'Position',[margin, height - offset - margin - CHK_size, width-2*margin, CHK_size]);
-        offset = offset + 20;
+        offset = offset + CHK_size;
     end
 end    
 % blank out missings
@@ -113,7 +123,7 @@ if ishghandle(fig)
             resps.(get(string_objs(j),'Tag')) = get(string_objs(j),'String');
         end
         for j=1:numel(drop_objs)
-            resps.(get(drop_objs(j),'Tag')) =  getCurrentPopupString(drop_objs(j));
+            resps.(get(drop_objs(j),'Tag')) =  CurrentPopupString(drop_objs(j),'get');
         end
         for j=1:numel(value_objs)
             resps.(get(value_objs(j),'Tag')) = get(value_objs(j),'Value');
@@ -125,6 +135,70 @@ else
 end
 
 a=2; % debug point =).
+end
+
+function interact(obj, evd, s)
+    if strcmp(s.type, 'edit') && isempty(get(obj,'String'))
+        return
+    end
+    
+    if any(strcmp('classcheck',fieldnames(s))) && strcmp(s.type, 'edit')
+        if ~s.classcheck(str2double(get(obj,'String')))
+            set(obj,'UserData','bad')
+            msg = 'Incorrect Type of Data';
+        else
+            set(obj,'UserData','good')
+        end
+    end
+    
+	if ~exist('msg','var') && any(strcmp('mustbe',fieldnames(s))) && ~ischar(s.mustbe)
+        cond = s.mustbe;
+        h = findobj('Tag',cond{2});
+        switch get(obj,'Style')
+            case 'edit'
+                data = str2double(get(obj,'String'));
+            case 'popupmenu'
+                data = CurrentPopupString(obj,'get');
+            case 'checkbox'
+                data = get(obj,'Values');
+        end 
+        switch get(h,'Style')
+            case 'edit'
+                str = get(h,'String');
+                if (~any(strcmp(str,cond{3})) && strcmp(data,cond{1}))
+                    set(obj,'UserData','bad')
+                    msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
+                else
+                    set(obj,'UserData','good')
+                end
+            case 'popupmenu'
+                if (~any(strcmp(CurrentPopupString(h,'get'), cond{3})) &&  strcmp(data,cond{1}))  
+                    set(obj,'UserData','bad')
+                    msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
+                else
+                    set(obj,'UserData','good')
+                end
+            case 'checkbox'
+                if get(h,'Values') ~= cond{3} && data == cond{1}
+                    set(obj,'UserData','bad')
+                    msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
+                else
+                    set(obj,'UserData','good')
+                end
+        end 
+	end
+    if strcmp(get(obj,'UserData'),'bad');
+        h = findobj('Tag',[s.name '_lab']);
+        set(h,'String',msg);
+        set(h,'Background','r');
+        set(findobj('Tag','RunBtn'),'Enable','off')
+    else
+        h = findobj('Tag',[s.name '_lab']);
+        set(h,'String',s.label);
+        set(h,'Background',[.94 .94 .94]); 
+        set(findobj('Tag','RunBtn'),'Enable','on')
+    end
+    
 end
 
 function doneKeyPress(obj, evd) %#ok
@@ -150,7 +224,7 @@ function done(obj, evd) %#ok
     end
 end
 
-function str = getCurrentPopupString(hh)
+function str = CurrentPopupString(hh,action,strValue)
 %# getCurrentPopupString returns the currently selected string in the popupmenu with handle hh
 
 %# could test input here
@@ -161,12 +235,17 @@ end
 %# get the string - do it the readable way
 list = get(hh,'String');
 val = get(hh,'Value');
-if iscell(list)
-   str = list{val};
-else
-   str = list(val,:);
+switch action
+    case 'get'
+        if iscell(list)
+           str = list{val};
+        else
+           str = list(val,:);
+        end
+    case 'set'
+        set(hh,'Value',find(strcmp(strValue,list)))
+        str=strValue;
 end
-
 end
 <<<<<<< HEAD
 =======
