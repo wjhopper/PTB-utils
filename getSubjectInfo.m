@@ -9,11 +9,14 @@ function resps = getSubjectInfo(varargin)
 
 % parse input arguments
 ip = inputParser;
-ip.addParamValue('components', struct('name','sub_num','type','textinput','label','Subject Number','value',''), @(x) isstruct(x));
-ip.addParamValue('win_name', 'Input Subject Info', @(x) isstring(x));
-
+ip.KeepUnmatched = true;
+ip.addParamValue('components', {struct('name','sub_num','type','textinput','label','Subject Number')}, @iscell);
+ip.addParamValue('win_name', 'Input Subject Info', @isstring);
 parse(ip,varargin{:}); 
-s = ip.Results.components;
+s= ip.Results.components;
+t = ip.Results.win_name;
+
+%some gui object constants to use
 margin = 10;
 padding = 5;
 BTN_size = 30;
@@ -21,15 +24,23 @@ TI_size = 30;
 DD_size = 30;
 CHK_size = 20;
 label_size = 20;
-
-table = {'textinput','edit'; 'check','checkbox';'dropdown','popup'};
-% figure out correct size
-height = ((TI_size+label_size)*sum(strcmpi('textinput',{s.type}))) + (CHK_size*sum(strcmpi('check',{s.type}))) + ...
-            ((DD_size+label_size)*sum(strcmpi('dropdown',{s.type}))) + BTN_size + (3*margin);
+table = {'textinput',{'edit',TI_size}; 'check',{'checkbox',CHK_size};'dropdown',{'popup',DD_size}};
+height = BTN_size + (3*margin);
 width = 200;
 
+% figure out correct size
+for i=1:numel(s)
+    if any(strcmp('type',fieldnames(s{i})))
+        tmp = table{strcmp(s{i}.type,table(:,1)),2};
+        s{i}.type = tmp{1}; %#ok<FXSET>
+        height = height + tmp{2} + label_size;
+    else
+        s{i}.type = 'textinput'; %#ok<FXSET>
+        height = height + label_size + TI_size + label_size;
+    end
+end
+
 % create figure 
-t = ip.Results.win_name;
 dims =  get(0, 'ScreenSize');
 fig = dialog('Name',t,'Position',[(dims(3)/2) + width/2, (dims(4)/2) + height/2, width, height], 'ToolBar','None','MenuBar','none', ...
     'NumberTitle','off','Visible','off');
@@ -39,22 +50,40 @@ offset= 0;
 value_objs=[];
 string_objs=[];
 drop_objs=[];
+title_obs=[];
 for i=1:numel(s)
-    if any(strcmp(s(i).type, {'textinput','dropdown'}))
-        uicontrol(fig,'Style','text','String',s(i).label, 'Horiz','left','Tag',[ s(i).name '_lab'],  ... 
-            'Position',[margin, height - offset - margin - label_size, width-2*margin, label_size]); %#ok<*AGROW>
-        a = uicontrol(fig,'Style',table{strcmpi(s(i).type,table(:,1)),2}, 'Horiz','left','Backgr','w', ...
-            'FontSize', 11,  'String', s(i).values, 'Tag',s(i).name, ...
-            'Position',[margin, height - offset - padding - label_size - TI_size, ...
-                        width-2*margin, TI_size]);
-        if strcmp(s(i).type, 'textinput')
-            string_objs(end+1)=a;
-        else
-            drop_objs(end+1)=a;
-        end
-        offset = offset +  50;
+    
+    if any(strcmp('label',fieldnames(s{i})))
+        lab = s{i}.label;
     else
-       value_objs(end+1) = uicontrol(fig,'Style','checkbox','String',s(i).label,'Val',s(i).values,'Tag',s(i).name, ... 
+        lab = ['Field' num2str(i)];
+    end
+% if its a drop down or text input field, give it a title and check its values setting 
+    if any(strcmp(s{i}.type, {'edit','popup'}))
+        title_obs(i) = uicontrol(fig,'Style','text','String',lab, 'Horiz','left','Tag',[ s{i}.name '_lab'],  ... 
+                        'Position',[margin, height - offset - margin - label_size, width-2*margin, label_size]); %#ok<*AGROW>
+        if any(strcmp('values',fieldnames(s{i})))
+            vals = s{i}.values;
+        else
+            vals= [];
+        end 
+        props= struct('Horiz','left','Backgr','w', 'FontSize', 11, 'Tag',s{i}.name, ...
+            'Position',[margin, height - offset - padding - label_size - TI_size, width-2*margin, TI_size]);
+    end
+    
+    if strcmp(s{i}.type, 'edit')
+        string_objs(i) = uicontrol(fig,props,'Style','edit', 'String', vals);
+        offset = offset +  TI_size + label_size;
+    elseif strcmp(s{i}.type, 'popup')
+        drop_objs(i) = uicontrol(fig,props,'Style','popup', 'String', vals);
+        offset = offset +  DD_size + label_size;
+    else
+        if any(strcmp('value',fieldnames(s{i})))
+            vals = s{i}.value;
+        else
+            vals= 0;
+        end
+        value_objs(end+1) = uicontrol(fig,'Style','checkbox','String',s{i}.label,'Val',s{i}.values,'Tag',s{i}.name, ...
         'Position',[margin, height - offset - margin - CHK_size, width-2*margin, CHK_size]);
         offset = offset + 20;
     end
@@ -139,3 +168,10 @@ else
 end
 
 end
+<<<<<<< HEAD
+=======
+
+function controls = extract(unmatched)
+    
+end
+>>>>>>> 5eebbbb... restructued input argument style go getSubjectInfo (again....)
