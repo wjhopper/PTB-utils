@@ -26,7 +26,7 @@ CHK_size = 20;
 label_size = 20;
 table = {'textinput',{'edit',TI_size}; 'check',{'checkbox',CHK_size};'dropdown',{'popupmenu',DD_size}};
 height = BTN_size + (3*margin);
-width = 200;
+width = 250;
 
 % figure out correct size
 for i=1:numel(s)
@@ -60,7 +60,7 @@ for i=1:numel(s)
          s{i}.label = lab;
     end
     
-    if any(strcmp('mustbe',fieldnames(s{i})))
+    if any(strcmp('mustbe',fieldnames(s{i}))) || any(strcmp('classcheck',fieldnames(s{i})))
         props.callback = {@interact, s{i}};
     end
     
@@ -134,10 +134,12 @@ else
   resps=[];  %#ok<NASGU>
 end
 
-a=2; % debug point =).
 end
 
 function interact(obj, evd, s)
+    if isempty(evd)
+        evd = false;
+    end
     if strcmp(s.type, 'edit') && isempty(get(obj,'String'))
         return
     end
@@ -145,7 +147,7 @@ function interact(obj, evd, s)
     if any(strcmp('classcheck',fieldnames(s))) && strcmp(s.type, 'edit')
         if ~s.classcheck(str2double(get(obj,'String')))
             set(obj,'UserData','bad')
-            msg = 'Incorrect Type of Data';
+            msg = strjoin({'Incorrect data type for', s.label, 'field'},' ');
         else
             set(obj,'UserData','good')
         end
@@ -165,21 +167,21 @@ function interact(obj, evd, s)
         switch get(h,'Style')
             case 'edit'
                 str = get(h,'String');
-                if (~any(strcmp(str,cond{3})) && strcmp(data,cond{1}))
+                if (any(strcmp(str,cond{3})) && ~strcmp(data,cond{1}))
                     set(obj,'UserData','bad')
                     msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
                 else
                     set(obj,'UserData','good')
                 end
             case 'popupmenu'
-                if (~any(strcmp(CurrentPopupString(h,'get'), cond{3})) &&  strcmp(data,cond{1}))  
+                if (any(strcmp(CurrentPopupString(h,'get'), cond{3})) &&  ~strcmp(data,cond{1}))  
                     set(obj,'UserData','bad')
                     msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
                 else
                     set(obj,'UserData','good')
                 end
             case 'checkbox'
-                if get(h,'Values') ~= cond{3} && data == cond{1}
+                if get(h,'Values') == cond{3} && data ~= cond{1}
                     set(obj,'UserData','bad')
                     msg = strjoin({s.label 'must be' cond{1} 'when' cond{2} 'is' cond{3} }, ' ');
                 else
@@ -188,15 +190,21 @@ function interact(obj, evd, s)
         end 
 	end
     if strcmp(get(obj,'UserData'),'bad');
-        h = findobj('Tag',[s.name '_lab']);
-        set(h,'String',msg);
-        set(h,'Background','r');
+        lab_handle = findobj('Tag',[s.name '_lab']);
+        set(lab_handle,'String',msg);
+        set(lab_handle,'Background','r');
         set(findobj('Tag','RunBtn'),'Enable','off')
     else
-        h = findobj('Tag',[s.name '_lab']);
-        set(h,'String',s.label);
-        set(h,'Background',[.94 .94 .94]); 
-        set(findobj('Tag','RunBtn'),'Enable','on')
+        lab_handle = findobj('Tag',[s.name '_lab']);
+        set(lab_handle,'String',s.label);
+        set(lab_handle,'Background',[.94 .94 .94]); 
+        if evd ~= 1 &&  exist('h','var') && ishghandle(h)
+            callbackCell = get(h,'Callback');
+            callbackCell{1}(h,1,callbackCell{2:end});
+        end
+        if isempty(findobj('UserData','bad'));
+            set(findobj('Tag','RunBtn'),'Enable','on');
+        end
     end
     
 end
