@@ -85,7 +85,12 @@ for i=1:numel(s)
         string_objs(i) = uicontrol(fig,props,'Style','edit', 'String', vals);
         offset = offset +  TI_size + label_size;
     elseif strcmp(s{i}.type, 'popupmenu')
-        drop_objs(i) = uicontrol(fig,props,'Style','popupmenu', 'String', vals);
+        if any(strcmp('default',fieldnames(s{i}))) && s{i}.default <= numel(vals)
+            selection = s{i}.default;
+        else 
+            selection = 1;
+        end
+        drop_objs(i) = uicontrol(fig,props,'Style','popupmenu', 'String', vals,'Value',selection);
         offset = offset +  DD_size + label_size;
     else
         if any(strcmp('value',fieldnames(s{i})))
