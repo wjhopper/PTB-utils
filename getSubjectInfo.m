@@ -1,17 +1,24 @@
 function resps = getSubjectInfo(varargin)
 
+<<<<<<< HEAD
 % Calling
 % c=struct('radio',struct('eeg',struct('label','EEG Experiment?')), ...
 %     'textinput',struct('subNum',struct('label','Subject Number')),...
 %     'dropdown',struct('session',struct('label','Session','val',[1 2])));
+=======
+% Calling Example 
+% c = { struct('name','sub_num','type','textinput','label','Subject Number','classcheck',@(x) (isnumeric(x) && ~isnan(x))), ...
+%       struct('name','group','type','dropdown','label','Group','values',{{'immediate','delay'}},'mustbe', {{'delay','session','2'}}), ...
+%       struct('name','session','type','dropdown','label','Session','values',{{'1','2'}},'mustbe', {{'1','group','immediate'}}) };
+>>>>>>> 95633a1... made some changes to be compatible with octave inputParser class
 % 
 % getSubjectInfo('components',c);
 
 % parse input arguments
 ip = inputParser;
 ip.KeepUnmatched = true;
-ip.addParamValue('components', {struct('name','sub_num','type','textinput','label','Subject Number')}, @iscell);
-ip.addParamValue('win_name', 'Input Subject Info', @isstring);
+addParamValue(ip,'components', {struct('name','sub_num','type','textinput','label','Subject Number')}, @iscell);
+addParamValue(ip,'win_name', 'Input Subject Info', @ischar);
 parse(ip,varargin{:}); 
 s= ip.Results.components;
 t = ip.Results.win_name;
