@@ -1,17 +1,10 @@
 function resps = getSubjectInfo(varargin)
 
-<<<<<<< HEAD
-% Calling
-% c=struct('radio',struct('eeg',struct('label','EEG Experiment?')), ...
-%     'textinput',struct('subNum',struct('label','Subject Number')),...
-%     'dropdown',struct('session',struct('label','Session','val',[1 2])));
-=======
 % Calling Example 
 % c = { struct('name','sub_num','type','textinput','label','Subject Number','classcheck',@(x) (isnumeric(x) && ~isnan(x))), ...
 %       struct('name','group','type','dropdown','label','Group','values',{{'immediate','delay'}},'mustbe', {{'delay','session','2'}}), ...
 %       struct('name','session','type','dropdown','label','Session','values',{{'1','2'}},'mustbe', {{'1','group','immediate'}}) };
->>>>>>> 95633a1... made some changes to be compatible with octave inputParser class
-% 
+
 % getSubjectInfo('components',c);
 
 % parse input arguments
@@ -267,10 +260,3 @@ switch action
         str=strValue;
 end
 end
-<<<<<<< HEAD
-=======
-
-function controls = extract(unmatched)
-    
-end
->>>>>>> 5eebbbb... restructued input argument style go getSubjectInfo (again....)
