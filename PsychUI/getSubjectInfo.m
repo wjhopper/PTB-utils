@@ -111,7 +111,7 @@ drop_objs(drop_objs==0)=[];
 % add buttons
 uicontrol(fig, 'Style','pushbutton','String','Run','Tag','RunBtn','Callback' ,@done ,...
           'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, BTN_size]) 
-uicontrol(fig, 'Style','pushbutton','String','Cancel','Tag','CancelBtn','Callback' ,@done , ...
+uicontrol(fig, 'Style','pushbutton','String','Cancel','Tag','CancelBtn','Callback' ,@cancel , ...
           'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, BTN_size])       
 
 % Wait for input
@@ -119,7 +119,7 @@ set(fig,'Visible','on');
 uiwait(fig);
 
 % Parse input
-if ishghandle(fig)
+if ishghandle(fig) 
     if strcmp(get(fig,'UserData'),'OK'),
         if ~exist('resps','var')
             resps=struct();
@@ -235,6 +235,10 @@ function done(obj, evd) %#ok
     else
       delete(gcbf)
     end
+end
+
+function cancel(obj,evd)
+     delete(gcbf)
 end
 
 function str = CurrentPopupString(hh,action,strValue)
