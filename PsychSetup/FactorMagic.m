@@ -1,4 +1,4 @@
-function factor_cell_mat = FactorMagic(varargin)
+function [factor_mat, rand_mat] = FactorMagic(varargin)
 ip = inputParser;
 addRequired(ip,'nTrials', @isnumeric);
 addParamValue(ip,'factors', {struct()}, @(x) iscell(x) && all(cellfun(@isstruct,x)));
@@ -20,22 +20,23 @@ elseif all(deltas ==0)
 end
 
 nFactors = numel(factors) - overcount;
-factor_cell_mat = cell(nTrials,nFactors);
-col_is_numeric=false(1,size(factor_cell_mat,2));
-% wghts= zeros(numel(factors), max(cellfun(@(x) numel(x.levels), factors)));
+factor_mat = cell(nTrials,nFactors);
+rand_mat = zeros(nTrials,nFactors);
+col_is_numeric=false(1,size(factor_mat,2));
+
 for i=1:numel(factors)
     f = factors{i};
     n = length(f.levels);
-    
+
     if all(cellfun(@isnumeric,f.levels))
         col_is_numeric(i) = true;
     end
-    
+
     if ~strcmp('weights',fieldnames(f))
         f.weights=repmat(1/n,1,n);
         factors{i}.weights=repmat(1/n,1,n);
     end
-    
+
     if i == 1 && ~any(strcmp('nested',fieldnames(f)))
         wghts=f.weights; %#ok<*AGROW>
     elseif i > 1 && ~any(strcmp('nested',fieldnames(f)))
@@ -51,40 +52,53 @@ for i=1:numel(factors)
         nest_wghts = factors{[b{:}]}.weights;
         nest_wghts = nest_wghts(strcmp(f.nested{:},factors{[b{:}]}.levels));
         tmp_wghts = CombVec(f.weights, nest_wghts, what{1:find([b{:}])-1});
-%         cols = prod(cellfun(@(x) numel(x.levels), factors(~[b{:}]))); 
         cols = prod(cellfun(@(x) numel(x.levels), factors([c{:}]==[b{:}])));% gets the right number of columns for the weight matrix
         wghts = reshape(prod(tmp_wghts,1), cols,[]);
     end
-
-    levels = repmat(f.levels',numel(wghts)/numel(f.levels),1);
     w = nTrials*reshape(wghts,numel(wghts),1);
-    
     if any(strcmp('nested',fieldnames(f)))
         within = f.nested{:};
+        fill_col =find([b{:}])+1;
         if isnumeric(within)
-            places = find([factor_cell_mat{col_is_numeric}] == within);
+            places = find([factor_mat{col_is_numeric}] == within);
         elseif ischar(within)
-            places = find(strcmp(factor_cell_mat(:,~col_is_numeric(1:i-1)),within));
+            places = find(strcmp(factor_mat(:,~col_is_numeric(1:i-1)),within));
         end
-        
+        fill(w,places,f,fill_col);
+    else
+        places = 1:length(factor_mat);
+        fill_col =i;
+    end
+    fill(w,places,f,fill_col);
+    if any(strcmp('shuffle',fieldnames(f))) && strcmp(f.shuffle, 'within')
+        nLevels=length(factors{i-1}.levels);
+        l = ceil(sum(w)/nLevels);
+        for j = 1:nLevels; % number of levels in previous factor
+            tmp = (1:l)+(l*(j-1));
+            rand_mat(tmp,i) = tmp(randperm(l));
+        end
+    elseif any(strcmp('shuffle',fieldnames(f))) && strcmp(f.shuffle, 'full')
+        order = 1:nTrials;
+        order = order(randperm(nTrials));
+        rand_mat(:,fill_col) = rand_mat(order,fill_col);
+    elseif any(strcmp('nested',fieldnames(f))) && any(strcmp('shuffle',fieldnames(factors{fill_col-1}))) 
+        match = strcmp(f.nested,factor_mat(:,fill_col-1));
+        rand_mat(match,fill_col) = rand_mat(match,fill_col-1);
+    else
+        rand_mat(:,fill_col) = 1:length(rand_mat);
+    end
+end
+
+
+    function  fill(w,places,f,fill_col)
+        levels = repmat(f.levels',numel(w)/numel(f.levels),1);
         start =1;
         for x=1:length(levels)
             nReps = ceil(w(x));
             stop = start+nReps - 1 ;
-            factor_cell_mat(places(start):places(stop),find([b{:}])+1) = repmat(levels(x),nReps,1);
+            fill_data = repmat(levels(x),nReps,1);
+            factor_mat(places(start):places(stop),fill_col) = fill_data;
             start =  stop+1;
         end
-    else 
-        start =1;
-        for x=1:length(levels)
-            nReps = ceil(w(x));
-            stop = start+nReps;
-            factor_cell_mat(start:stop-1,i) = repmat(levels(x),nReps,1);
-            start = stop;
-        end
     end
-    
-
-    
 end
-
