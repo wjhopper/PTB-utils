@@ -2,8 +2,10 @@ function [string, final_fliprt] = EchoCueResp(windowPtr, cue, msg, left, right, 
 global deviceIndex
 KbName('UnifyKeyNames')
 HideCursor();
-% string = GetEchoString(window, cue, msg, left, right, [textColor], [bgColor], [useKbCheck=0], [deviceIndex], [untilTime=inf], [KbCheck args...])
-% textColor, bgColor, useKbCheck, duration 
+% string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], [spacing], [duration], [robot], [answers],[textColor], [bgColor] )
+
+% REQUIRED ARGUMENTS
+%
 % Get a string typed at the keyboard. Entry is terminated by <return> or
 % <enter>. Adapted from GetEchoString, part of the psychtoolbox-basic set
 % of functions, distributed with psychtoolbox
@@ -22,7 +24,6 @@ HideCursor();
 % (i.e. the empty vector []), but argument cannot be completely left out. 
 % NOTE: EMPTY  VECTOR USAGE IS UNTESTED!!!!!!!!!!!! 
 %
-%
 % 'left' = coordinate positions for region where cue word is placed (i.e.
 % left side). Defined by [x1,y1,x2,y2] vector where (x1,y1) is the top 
 % left vectice of the rectangular region and (x2,y2) is the bottom right
@@ -33,9 +34,28 @@ HideCursor();
 % left vectice of the rectangular region and (x2,y2) is the bottom right
 % vertice of the rectangular region. 
 %
+% OPTIONAL ARGUMENTS
+%
+% 'KbHandler' = character vector specifying the name of psychtoolbox key press handling 
+%    function. Can be 'KbQueue' (the default), 'KbCheck',or 'GetChar'.
+%
+% 'Spacing' = 
+%
+% 'duration' = numeric scalar value which determines how long input will be
+% accepted for. Default is 'inf', which allows for an infinite responding
+% period.
+%
+% 'robot' = logical value which determines whether the function should wait
+% for a human user to give input, or whether a Java robot should input the
+% answers. Default is false. Useful for debugging. If true, the 'answers' argument must also
+% be specified to tell the Java robot what to type!
+%
+% 'answer' = a character vector which the Java robot will type in. Default
+% is [], as 
+% 
 % 'textColor' = Color to use for drawing the text. 
-%'bgColor' = Background color for text. By default, the background is transparent. If a non-empty
-% 'bgColor' is specified it will be used. The current alpha blending
+% 'bgColor' = Background color for text. By default, the background is transparent. If a non-empty
+% bgColor value is specified it will be used. The current alpha blending
 % setting will affect the appearance of the text if 'bgColor' is specified!
 
 % See also: GetNumber, GetString, GetEchoNumber
@@ -43,13 +63,12 @@ HideCursor();
 
 if nargin > 12
     error('EchoCueResp:EchoCueResp:TooManyInputs', ...
-        'requires at most 10 inputs');
+            'accepts at most 12 argument inputs');
 end
 
-% optargs = {textcolor, bgcolor,spacing, collect_method, duration, robot, answer}
-optargs = {Screen('TextColor', windowPtr), [], 35, 'KbQueue', inf, false ,[]};
+optargs = {'KbQueue',35,  inf, false , [],Screen('TextColor', windowPtr),[]};
 optargs(1:length(varargin)) = varargin;
-[textColor, bgColor, spacing, collect_method, duration, robot,answer] = optargs{:}; %#ok<ASGLU>
+[KbHandler, spacing,duration, robot,answer, textColor, bgColor] = optargs{:}; %#ok<ASGLU>
 
 if robot
    import java.awt.Robot;
@@ -69,14 +88,14 @@ if ~isempty(bgColor)
 end
 
 %% ------------- Drawing and Writing --------------------------------------
-string = '?';
-draw(cue,msg,string) ;% Write the initial message
+delim=' - ';
+string=msg;
+draw(cue,delim,string) ;% Write the initial message
 string='';
 
 DisableKeysForKbCheck([9,20,27,32,37,39,44,46,48:57,93,160:165,188,190,191]);
-% timer=0;
-% untilTime = GetSecs + duration;
-switch collect_method
+
+switch KbHandler
     case 'GetChar'
         KbQueueRelease(deviceIndex);
         ListenChar(2);
@@ -98,7 +117,7 @@ if ~isempty(bgColor)   % Restore text alpha blending state if it was altered:
     Screen('Preference', 'TextAlphaBlending', oldalpha);
 end
 
-if strcmp(collect_method, 'KbQueue')
+if strcmp(KbHandler, 'KbQueue')
     KbQueueStop(deviceIndex);
     DisableKeysForKbCheck([]);
 else
