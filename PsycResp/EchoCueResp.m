@@ -1,8 +1,7 @@
 function [string, final_fliprt] = EchoCueResp(windowPtr, cue, msg, left, right, varargin)
-global deviceIndex
 KbName('UnifyKeyNames')
 HideCursor();
-% string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], [spacing], [duration],[answers],[textColor], [bgColor] )
+% string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], dev [spacing], [duration],[answers],[textColor], [bgColor] )
 
 % REQUIRED ARGUMENTS
 %
@@ -36,12 +35,13 @@ HideCursor();
 %
 % OPTIONAL ARGUMENTS
 %
-% 'KbHandler' = a function handle specifying the the psychtoolbox key press handling 
-% function you want to use. Can be '@KbQueue_EchoHandler' (the default),
-% '@KbCheck_EchoHandler', '@GetChar_EchoHandler' or
-% '@RobotEchoHandler'. Using '@RobotEchoHandler' requires
+% 'KbHandler' = a string specifying the the psychtoolbox key press handling 
+% function you want to use. Can be 'KbQueue' (the default),
+% 'KbCheck', 'GetChar' or 'Robot'. Using 'Robot' requires
 % using an instance of the Java robot class, so it is not suitable for the matlab --no-jvm environment
 % and forces the use of KbQueue to handle presses from the robot. 
+%
+% 'dev' = device number of connected keyboard you want to use 
 %
 % 'Spacing' = 
 %
@@ -61,18 +61,18 @@ HideCursor();
 % See also: GetNumber, GetString, GetEchoNumber
 
 
-if nargin > 11
+if nargin > 12
     error('EchoCueResp:EchoCueResp:TooManyInputs', ...
-            'accepts at most 11 argument inputs');
+            'accepts at most 12 argument inputs');
 end
 
-optargs = {@KbQueue_EchoHandler,35,  inf, [],Screen('TextColor', windowPtr),[]};
+optargs = {'KbQueue',[], 35, inf, [], @dummy, {}, Screen('TextColor', windowPtr), []};
 optargs(1:length(varargin)) = varargin;
-[KbHandler, spacing,duration, answer, textColor, bgColor] = optargs{:}; %#ok<ASGLU>
+[KbHandler,dev, spacing,duration, answer, drawExtra, params, textColor, bgColor] = optargs{:}; %#ok<ASGLU>
 
 % If RobotEchoHandler is used, check that robot and answer arguments are
 % given
-if strcmp(func2str(KbHandler),'RobotEchoHandler') && isempty(answer)
+if strcmp(KbHandler,'Robot') && isempty(answer)
      error('EchoCueResp:EchoCueResp:MissingRobotInputs', ...
             'Use of RobotEchoHandler requires optional arguments ''robot'' and ''answer'' to be specified');
 end
@@ -87,9 +87,10 @@ end
 DisableKeysForKbCheck([9,20,27,32,37,39,44,46,48:57,93,160:165,188,190,191]);
 delim=' - ';
 string=msg;
-draw(cue,delim,string) ;% Write the initial message
+draw(cue,delim,string,drawExtra) ;% Write the initial message
 string='';
-KbHandler(string)
+KbHandler=eval(['@' KbHandler '_EchoHandler']);
+[string, final_fliprt] = KbHandler(string);
 
 %% ------------ Cleanup before going home -------------------------------------------------------------
 if ~isempty(bgColor)   % Restore text alpha blending state if it was altered:
@@ -108,7 +109,7 @@ function [string, fliprt]= GetChar_EchoHandler(string) %#ok<DEFNU>
         if dobreak
             break
         else
-           fliprt = draw(cue,msg,string);
+           fliprt = draw(cue,delim,string,drawExtra);
         end
     end
     ListenChar(0);
@@ -121,13 +122,13 @@ function [string, fliprt] = KbCheck_EchoHandler(string) %#ok<DEFNU>
     untilTime = GetSecs + duration;
     tic = GetSecs;       
     while true
-        char = GetKbChar(deviceIndex,untilTime);
+        char = GetKbChar(dev,untilTime);
         [string, dobreak] = checkchar(char,string);
         if dobreak
             fliprt = GetSecs;
             break
         else
-            fliprt = draw(cue,msg,string);
+            fliprt = draw(cue,delim,string,drawExtra);
         end
         toc = GetSecs;
         timer = timer + (toc-tic);
@@ -136,34 +137,33 @@ function [string, fliprt] = KbCheck_EchoHandler(string) %#ok<DEFNU>
     ListenChar(0);    
 end
 
-function [string, fliprt]=KbQueue_EchoHandler(string)
+function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle
     time = GetSecs;
     untilTime = GetSecs + duration;
-    KbQueueStart(deviceIndex);
+    KbQueueStart(dev);
     while time < untilTime;
-        [ ~, firstPress]=KbQueueCheck(deviceIndex);
+        [ ~, firstPress]=KbQueueCheck(dev);
         char = KbName(firstPress);
         if ~isempty(char)
-            KbQueueFlush(deviceIndex);
-            clear firstPress
+            KbQueueFlush(dev);
             [string, dobreak] = checkchar_cell(char,string);
+            rt = max(firstPress);
             if dobreak
-                fliprt = GetSecs;
                 break
             else
-                fliprt = draw(cue,msg,string);
+                draw(cue,delim,string,drawExtra);
             end
-            time = GetSecs;
         else
-            time = GetSecs;
+            rt = GetSecs;
         end
+        time = GetSecs;
     end
-    KbQueueStop(deviceIndex);
+    KbQueueStop(dev);
     DisableKeysForKbCheck([]);
 end    
 
-function [string, fliprt]=RobotEchoHandler(string) %#ok<DEFNU>
+function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle and draw with a robot!!!!
     rob = java.awt.Robot; %#ok<NASGU>
     import java.awt.event.KeyEvent
@@ -171,30 +171,33 @@ function [string, fliprt]=RobotEchoHandler(string) %#ok<DEFNU>
     release = {'rob.keyRelease(KeyEvent.VK_','ENTER',');'};
     time = GetSecs;
     untilTime = time + duration;
-    KbQueueStart(deviceIndex);
+    KbQueueStart(dev);
     for j = 1:length(answer)
         press{2} = upper(answer(j));
         release{2} = upper(answer(j));
         while time < untilTime;
             eval([press{:}]);
-            [ ~, firstPress]=KbQueueCheck(deviceIndex);
+            eval([release{:}])
+            [ ~, firstPress]=KbQueueCheck(dev);
             char = KbName(firstPress);
             if ~isempty(char)
-                eval([release{:}])
-                KbQueueFlush(deviceIndex);
+%                 eval([release{:}])
+                KbQueueFlush(dev);
 %                 clear firstPress
                 [string, dobreak] = checkchar_cell(char,string);
                 if dobreak
                     fliprt = GetSecs;
                     break
                 else
-                    fliprt = draw(cue,msg,string);
+                    fliprt = draw(cue,msg,string,drawExtra);
                     break
                 end
             end
             time = GetSecs;
         end
     end
+    KbQueueStop(dev);
+    DisableKeysForKbCheck([]);
 end
 
 %% ---------- checkchar(char) -----------------------------------------------------------------
@@ -239,12 +242,16 @@ end
         end
     end
 %% --------------- draw -------------------------------------------------
-    function fliprt = draw(cue,msg,string)
+    function fliprt = draw(cue,msg,string,drawExtra)
+        drawExtra(params{:})
         DrawFormattedText(windowPtr,cue,'right', 'center',[],[],[],[],[],[],left-[0 0 spacing 0]);
         DrawFormattedText(windowPtr,msg, 'center','center');
         DrawFormattedText(windowPtr,string,right(1)+spacing, 'center');
         fliprt = Screen('Flip', windowPtr);
-    end    
+    end
+
+    function dummy(varargin)
+    end
     
 end
 
