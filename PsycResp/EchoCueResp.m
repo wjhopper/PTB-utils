@@ -160,7 +160,6 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
         time = GetSecs;
     end
     KbQueueStop(dev);
-    DisableKeysForKbCheck([]);
 end    
 
 function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
@@ -197,7 +196,6 @@ function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
         end
     end
     KbQueueStop(dev);
-    DisableKeysForKbCheck([]);
 end
 
 %% ---------- checkchar(char) -----------------------------------------------------------------
