@@ -150,13 +150,12 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
         if ~isempty(char)
             KbQueueFlush(dev);
             [string, dobreak] = checkchar_cell(char,string);
-            rt = max(firstPress);
             if dobreak
                 rt(2) = max(firstPress);
                 break
             else
                 if FP
-                    rt(1) = min(firstPress);
+                    rt(1) = min(firstPress(firstPress>0));
                     FP=false;
                 end
                 draw(cue,delim,string,drawExtra);
@@ -188,21 +187,18 @@ function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
             char = KbName(firstPress);
             if ~isempty(char)
                 KbQueueFlush(dev);
-                [string, dobreak] = checkchar_cell(char,string);
-                if dobreak
-                    rt(2) = max(firstPress);
-                    break
-                else
-                    if FP 
-                        rt(1) = min(firstPress);
-                    end
-                    draw(cue,msg,string,drawExtra);
-                    break
+                string = checkchar_cell(char,string);
+                if FP 
+                    rt(1) = min(firstPress(firstPress>0));
+                    FP=false;
                 end
+                draw(cue,msg,string,drawExtra);
             end
             time = GetSecs;
+            break
         end
     end
+    rt(2) = max(firstPress);
     KbQueueStop(dev);
 end
 
