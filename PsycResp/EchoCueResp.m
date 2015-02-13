@@ -141,7 +141,7 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle
     time = GetSecs;
     untilTime = GetSecs + duration;
-    rt=[0,untilTime];
+    rt=nan(1,2);
     KbQueueStart(dev);
     FP = true;
     while time < untilTime;
@@ -164,6 +164,7 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
         time = GetSecs;
     end
     KbQueueStop(dev);
+    
 end    
 
 function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
@@ -174,7 +175,7 @@ function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
     release = {'rob.keyRelease(KeyEvent.VK_','ENTER',');'};
     time = GetSecs;
     untilTime = time + duration;
-    rt=[0,untilTime];
+    rt=nan(1,2);
     KbQueueStart(dev);
     FP = true;
     for j = 1:length(answer)
