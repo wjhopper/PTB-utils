@@ -1,4 +1,4 @@
-function [string, final_fliprt] = EchoCueResp(windowPtr, cue, msg, left, right, varargin)
+function [string, onset, rt] = EchoCueResp(windowPtr, cue, msg, left, right, varargin)
 KbName('UnifyKeyNames')
 HideCursor();
 % string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], dev [spacing], [duration],[answers],[textColor], [bgColor] )
@@ -87,10 +87,10 @@ end
 DisableKeysForKbCheck([9,20,27,32,37,39,44,46,48:57,93,160:165,188,190,191]);
 delim=' - ';
 string=msg;
-draw(cue,delim,string,drawExtra) ;% Write the initial message
+onset = draw(cue,delim,string,drawExtra) ;% Write the initial message
 string='';
 KbHandler=eval(['@' KbHandler '_EchoHandler']);
-[string, final_fliprt] = KbHandler(string);
+[string, rt] = KbHandler(string);
 
 %% ------------ Cleanup before going home -------------------------------------------------------------
 if ~isempty(bgColor)   % Restore text alpha blending state if it was altered:
@@ -141,7 +141,9 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle
     time = GetSecs;
     untilTime = GetSecs + duration;
+    rt=[0,untilTime];
     KbQueueStart(dev);
+    FP = true;
     while time < untilTime;
         [ ~, firstPress]=KbQueueCheck(dev);
         char = KbName(firstPress);
@@ -150,19 +152,22 @@ function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
             [string, dobreak] = checkchar_cell(char,string);
             rt = max(firstPress);
             if dobreak
+                rt(2) = max(firstPress);
                 break
             else
+                if FP
+                    rt(1) = min(firstPress);
+                    FP=false;
+                end
                 draw(cue,delim,string,drawExtra);
             end
-        else
-            rt = GetSecs;
         end
         time = GetSecs;
     end
     KbQueueStop(dev);
 end    
 
-function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
+function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle and draw with a robot!!!!
     rob = java.awt.Robot; %#ok<NASGU>
     import java.awt.event.KeyEvent
@@ -170,7 +175,9 @@ function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
     release = {'rob.keyRelease(KeyEvent.VK_','ENTER',');'};
     time = GetSecs;
     untilTime = time + duration;
+    rt=[0,untilTime];
     KbQueueStart(dev);
+    FP = true;
     for j = 1:length(answer)
         press{2} = upper(answer(j));
         release{2} = upper(answer(j));
@@ -180,15 +187,16 @@ function [string, fliprt]=Robot_EchoHandler(string) %#ok<DEFNU>
             [ ~, firstPress]=KbQueueCheck(dev);
             char = KbName(firstPress);
             if ~isempty(char)
-%                 eval([release{:}])
                 KbQueueFlush(dev);
-%                 clear firstPress
                 [string, dobreak] = checkchar_cell(char,string);
                 if dobreak
-                    fliprt = GetSecs;
+                    rt(2) = max(firstPress);
                     break
                 else
-                    fliprt = draw(cue,msg,string,drawExtra);
+                    if FP 
+                        rt(1) = min(firstPress);
+                    end
+                    draw(cue,msg,string,drawExtra);
                     break
                 end
             end
@@ -240,12 +248,12 @@ end
         end
     end
 %% --------------- draw -------------------------------------------------
-    function fliprt = draw(cue,msg,string,drawExtra)
+    function onset = draw(cue,msg,string,drawExtra)
         drawExtra(params{:})
         DrawFormattedText(windowPtr,cue,'right', 'center',[],[],[],[],[],[],left-[0 0 spacing 0]);
         DrawFormattedText(windowPtr,msg, 'center','center');
         DrawFormattedText(windowPtr,string,right(1)+spacing, 'center');
-        fliprt = Screen('Flip', windowPtr);
+        [~, onset] = Screen('Flip', windowPtr);
     end
 
     function dummy(varargin)
