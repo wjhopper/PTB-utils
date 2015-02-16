@@ -70,8 +70,15 @@ for i=1:numel(factors)
         fill_col =i;
     end
     fill(w,places,f,fill_col);
-    if any(strcmp('shuffle',fieldnames(f))) && strcmp(f.shuffle, 'within')
+    if any(strcmp('shuffle',fieldnames(f))) && strcmp(f.shuffle, 'parent')
         nLevels=length(factors{i-1}.levels);
+        l = ceil(sum(w)/nLevels);
+        for j = 1:nLevels; % number of levels in previous factor
+            tmp = (1:l)+(l*(j-1));
+            rand_mat(tmp,i) = tmp(randperm(l));
+        end
+    elseif any(strcmp('shuffle',fieldnames(f))) && strcmp(f.shuffle, 'within')
+        nLevels=length(f.levels);
         l = ceil(sum(w)/nLevels);
         for j = 1:nLevels; % number of levels in previous factor
             tmp = (1:l)+(l*(j-1));
