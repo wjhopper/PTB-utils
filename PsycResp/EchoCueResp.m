@@ -137,74 +137,96 @@ function [string, fliprt] = KbCheck_EchoHandler(string) %#ok<DEFNU>
     ListenChar(0);    
 end
 
-function [string, rt]=KbQueue_EchoHandler(string) %#ok<DEFNU>
-% listen_KbQueueStyle
-    time = GetSecs;
+function [string, rt ]=KbQueue_EchoHandler(string) %#ok<DEFNU>
+    % listen_KbQueueStyle
     untilTime = GetSecs + duration;
-    rt=nan(1,2);
+    rt=[];
     KbQueueStart(dev);
-    FP = true;
-    while time < untilTime;
-        [ ~, firstPress]=KbQueueCheck(dev);
-        char = KbName(firstPress);
-        if ~isempty(char)
-            KbQueueFlush(dev);
-            [string, dobreak] = checkchar_cell(char,string);
-            if dobreak
-                break
-            else
-                if FP
-                    rt(1) = min(firstPress(firstPress>0));
-                    FP=false;
-                else
-                    rt(2) = max(firstPress(firstPress>0));
-                end
-                draw(cue,delim,string,drawExtra);
+    while GetSecs < untilTime;
+        [ pressed, firstPress]=KbQueueCheck(dev);
+        if pressed                 
+%             KbQueueFlush(dev);
+            [pressTimes, ind] = sort(firstPress(firstPress ~= 0));
+            keys = find(firstPress);
+
+            if iscell(keys)
+                keys =[keys{:}];
+                keys = keys(ind);
             end
+
+            for i=1:numel(keys)
+
+                if keys(i) == 13 % 'RETURN'
+                        untilTime=0;
+                elseif keys(i) == 8 % 'BACKSPACE
+%                     if ~isempty(string)
+                    string = string(1:end-1);       
+                    rt = rt(1:end-1);
+%                     end
+                else
+                    string = [string, KbName(keys(i))]; %#ok<AGROW>
+                    rt = [rt pressTimes(i)]; %#ok<AGROW>
+                end
+            end                
+            draw(cue,delim,string,drawExtra);
         end
-        time = GetSecs;
     end
     KbQueueStop(dev);
+    rt=[rt(1),rt(end)];
     
 end    
 
 function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
 % listen_KbQueueStyle and draw with a robot!!!!
+
     rob = java.awt.Robot; %#ok<NASGU>
     import java.awt.event.KeyEvent
     press = {'rob.keyPress(KeyEvent.VK_', 'ENTER',');'};
     release = {'rob.keyRelease(KeyEvent.VK_','ENTER',');'};
-    time = GetSecs;
-    untilTime = time + duration;
-    rt=nan(1,2);
+    untilTime = GetSecs + duration;
+    rt=[];
     KbQueueStart(dev);
-    FP = true;
     for j = 1:length(answer)
         press{2} = upper(answer(j));
         release{2} = upper(answer(j));
-        while time < untilTime;
+        while GetSecs < untilTime;
             eval([press{:}]);
             eval([release{:}])
-            [ ~, firstPress]=KbQueueCheck(dev);
-            char = KbName(firstPress);
-            if ~isempty(char)
-                KbQueueFlush(dev);
-                string = checkchar_cell(char,string);
-                if FP 
-                    rt(1) = min(firstPress(firstPress>0));
-                    FP=false;
-                else
-                    rt(2) = max(firstPress(firstPress>0));
+            [ pressed,  firstPress]=KbQueueCheck(dev);
+            if pressed
+%                 KbQueueFlush(dev);
+                [pressTimes, ind] = sort(firstPress(firstPress ~= 0));
+                keys = find(firstPress);
+
+                if iscell(keys)
+                    keys =[keys{:}];
+                    keys = keys(ind);
                 end
-                draw(cue,msg,string,drawExtra);
+                
+                for i=1:numel(keys)
+                    
+                    if keys(i) == 13 % 'RETURN'
+                            untilTime = 0;
+                    elseif keys(i) == 8 % 'BACKSPACE
+%                     if ~isempty(string)
+                        string = string(1:end-1);       
+                        rt = rt(1:end-1);
+%                     end
+                    else
+                        string = [string, KbName(keys(i))]; %#ok<AGROW>
+                        rt = [rt pressTimes(i)]; %#ok<AGROW>
+                    end
+                end                
+                draw(cue,delim,string,drawExtra);
+                break
             end
-            time = GetSecs;
-            break
         end
     end
     KbQueueStop(dev);
+    rt=[rt(1),rt(end)];
 end
 
+    
 %% ---------- checkchar(char) -----------------------------------------------------------------
     function [string, dobreak] = checkchar(char, string)
         if isempty(char)
@@ -220,35 +242,10 @@ end
             otherwise
                 string = [string, char]; 
         end
-    end
-%% --------------- checkchar_cell( {char} ) -------------------------------------------------
-    function [string, dobreak] = checkchar_cell(char, string)
-        dobreak = 0;
-        if isempty(char)
-           dobreak =1;
-        end    
-
-        if ~iscell(char)
-            char ={char(:)'};
-        end
-
-        for i=1:length(char)    
-            switch char{i}
-                case {'Return', 'Enter'}% ctrl-C, enter, or return
-                    dobreak =1; 
-                case 'BackSpace'
-                        % backspace
-                    if ~isempty(string)
-                        string=string(1:end-1);              
-                    end
-                otherwise
-                    string = [string, char{i}]; %#ok<AGROW>
-            end
-        end
-    end
+    end    
 %% --------------- draw -------------------------------------------------
     function onset = draw(cue,msg,string,drawExtra)
-        drawExtra(params{:})
+        drawExtra(params{:}) 
         DrawFormattedText(windowPtr,cue,'right', 'center',[],[],[],[],[],[],left-[0 0 spacing 0]);
         DrawFormattedText(windowPtr,msg, 'center','center');
         DrawFormattedText(windowPtr,string,right(1)+spacing, 'center');
