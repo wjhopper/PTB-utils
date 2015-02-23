@@ -1,7 +1,7 @@
-function [string, onset, rt] = EchoCueResp(windowPtr, cue, msg, left, right, varargin)
+function [string, onset, rt] = EchoCueResp(windowPtr, cue, msg, cueRect, respRect, varargin)
 KbName('UnifyKeyNames')
 HideCursor();
-% string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], dev [spacing], [duration],[answers],[textColor], [bgColor] )
+% string = EchoCue Resp(window, cue, msg, left, right, [KbHandler], dev, [duration],[answers],[textColor], [bgColor] )
 
 % REQUIRED ARGUMENTS
 %
@@ -23,13 +23,13 @@ HideCursor();
 % (i.e. the empty vector []), but argument cannot be completely left out. 
 % NOTE: EMPTY  VECTOR USAGE IS UNTESTED!!!!!!!!!!!! 
 %
-% 'left' = coordinate positions for region where cue word is placed (i.e.
-% left side). Defined by [x1,y1,x2,y2] vector where (x1,y1) is the top 
+% 'cueRect' = coordinate positions for region where cue word is placed.
+% Defined by [x1,y1,x2,y2] vector where (x1,y1) is the top 
 % left vectice of the rectangular region and (x2,y2) is the bottom right
 % vertice of the rectangular region.
 %
-% 'right' = coordinate positions for region where target input is placed (i.e.
-% right side). Defined by [x1,y1,x2,y2] vector where (x1,y1) is the top 
+% 'respRect' = coordinate positions for region where response input is drawn.
+% Defined by [x1,y1,x2,y2] vector where (x1,y1) is the top 
 % left vectice of the rectangular region and (x2,y2) is the bottom right
 % vertice of the rectangular region. 
 %
@@ -42,8 +42,6 @@ HideCursor();
 % and forces the use of KbQueue to handle presses from the robot. 
 %
 % 'dev' = device number of connected keyboard you want to use 
-%
-% 'Spacing' = 
 %
 % 'duration' = numeric scalar value which determines how long input will be
 % accepted for. Default is 'inf', which allows for an infinite responding
@@ -66,9 +64,9 @@ if nargin > 12
             'accepts at most 12 argument inputs');
 end
 
-optargs = {'KbQueue',[], 35, inf, [], @dummy, {}, Screen('TextColor', windowPtr), []};
+optargs = {'KbQueue',[], 35, inf, [], @dummy_draw, {}, Screen('TextColor', windowPtr), []};
 optargs(1:length(varargin)) = varargin;
-[KbHandler,dev, spacing,duration, answer, drawExtra, params, textColor, bgColor] = optargs{:}; %#ok<ASGLU>
+[KbHandler,dev, spacing,duration, answer, draw, params, textColor, bgColor] = optargs{:}; %#ok<ASGLU>
 
 % If RobotEchoHandler is used, check that robot and answer arguments are
 % given
@@ -84,10 +82,9 @@ if ~isempty(bgColor)
 end
 
 %% ------------- Drawing and Writing --------------------------------------
-DisableKeysForKbCheck([9,20,27,32,37,39,44,46,48:57,93,160:165,188,190,191]);
-delim=' - ';
+DisableKeysForKbCheck([9,20,27,32,37,39,44,46,93,160:165,188,190,191]);
 string=msg;
-onset = draw(cue,delim,string,drawExtra) ;% Write the initial message
+onset = draw(windowPtr,cue,string,cueRect,respRect,params) ;% Write the initial message
 string='';
 KbHandler=eval(['@' KbHandler '_EchoHandler']);
 [string, rt] = KbHandler(string);
@@ -97,6 +94,7 @@ if ~isempty(bgColor)   % Restore text alpha blending state if it was altered:
     Screen('Preference', 'TextAlphaBlending', oldalpha);
 end 
 DisableKeysForKbCheck([]);
+KbQueueFlush(dev);
 return
 
 %% ------------- KbHandler Functions ------------------------------------------------------------------
@@ -109,7 +107,7 @@ function [string, fliprt]= GetChar_EchoHandler(string) %#ok<DEFNU>
         if dobreak
             break
         else
-           fliprt = draw(cue,delim,string,drawExtra);
+           fliprt = draw(windowPtr,cue,string,cueRect,respRect);
         end
     end
     ListenChar(0);
@@ -128,7 +126,7 @@ function [string, fliprt] = KbCheck_EchoHandler(string) %#ok<DEFNU>
             fliprt = GetSecs;
             break
         else
-            fliprt = draw(cue,delim,string,drawExtra);
+            fliprt = draw(windowPtr,cue,string,cueRect,respRect);
         end
         toc = GetSecs;
         timer = timer + (toc-tic);
@@ -145,7 +143,6 @@ function [string, rt ]=KbQueue_EchoHandler(string) %#ok<DEFNU>
     while GetSecs < untilTime;
         [ pressed, firstPress]=KbQueueCheck(dev);
         if pressed                 
-%             KbQueueFlush(dev);
             [pressTimes, ind] = sort(firstPress(firstPress ~= 0));
             keys = find(firstPress);
 
@@ -156,22 +153,31 @@ function [string, rt ]=KbQueue_EchoHandler(string) %#ok<DEFNU>
 
             for i=1:numel(keys)
 
-                if keys(i) == 13 % 'RETURN'
-                        untilTime=0;
+                if keys(i) == 13  
+                    untilTime=0;       
                 elseif keys(i) == 8 % 'BACKSPACE
 %                     if ~isempty(string)
                     string = string(1:end-1);       
                     rt = rt(1:end-1);
+                    draw(windowPtr,cue,string,cueRect,respRect);                    
 %                     end
                 else
-                    string = [string, KbName(keys(i))]; %#ok<AGROW>
+                    chars = KbName(keys(i));
+                    string = [string, chars(1)]; %#ok<AGROW>
                     rt = [rt pressTimes(i)]; %#ok<AGROW>
+                    draw(windowPtr,cue,string,cueRect,respRect);                    
                 end
             end                
-            draw(cue,delim,string,drawExtra);
+%             draw(windowPtr,cue,string,cueRect,respRect);
         end
     end
     KbQueueStop(dev);
+    if isempty(rt)
+        rt=[NaN,GetSecs];
+        return
+    elseif numel(rt) <2
+        rt = [rt GetSecs];        
+    end
     rt=[rt(1),rt(end)];
     
 end    
@@ -191,10 +197,10 @@ function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
         release{2} = upper(answer(j));
         while GetSecs < untilTime;
             eval([press{:}]);
-            eval([release{:}])
+            eval([release{:}]);
             [ pressed,  firstPress]=KbQueueCheck(dev);
             if pressed
-%                 KbQueueFlush(dev);
+
                 [pressTimes, ind] = sort(firstPress(firstPress ~= 0));
                 keys = find(firstPress);
 
@@ -202,27 +208,35 @@ function [string, rt]=Robot_EchoHandler(string) %#ok<DEFNU>
                     keys =[keys{:}];
                     keys = keys(ind);
                 end
-                
+
                 for i=1:numel(keys)
-                    
-                    if keys(i) == 13 % 'RETURN'
-                            untilTime = 0;
+                    if keys(i) == 13  % 'RETURN'
+                        untilTime=0;       
                     elseif keys(i) == 8 % 'BACKSPACE
 %                     if ~isempty(string)
                         string = string(1:end-1);       
                         rt = rt(1:end-1);
+                        draw(windowPtr,cue,string,cueRect,respRect);                        
 %                     end
                     else
-                        string = [string, KbName(keys(i))]; %#ok<AGROW>
+                        chars = KbName(keys(i));
+                        string = [string, chars(1)]; %#ok<AGROW>
                         rt = [rt pressTimes(i)]; %#ok<AGROW>
+                        draw(windowPtr,cue,string,cueRect,respRect);                        
                     end
                 end                
-                draw(cue,delim,string,drawExtra);
+%                 draw(windowPtr,cue,string,cueRect,respRect);
                 break
             end
         end
     end
     KbQueueStop(dev);
+    if isempty(rt)
+        rt=[NaN,GetSecs];
+        return
+    elseif numel(rt) <2
+        rt = [rt GetSecs];
+    end    
     rt=[rt(1),rt(end)];
 end
 
@@ -243,17 +257,13 @@ end
                 string = [string, char]; 
         end
     end    
-%% --------------- draw -------------------------------------------------
-    function onset = draw(cue,msg,string,drawExtra)
-        drawExtra(params{:}) 
-        DrawFormattedText(windowPtr,cue,'right', 'center',[],[],[],[],[],[],left-[0 0 spacing 0]);
-        DrawFormattedText(windowPtr,msg, 'center','center');
-        DrawFormattedText(windowPtr,string,right(1)+spacing, 'center');
-        [~, onset] = Screen('Flip', windowPtr);
-    end
+%% --------------- default drawing function -------------------------------------------------
 
-    function dummy(varargin)
-    end
+function onset = dummy_draw(windowPtr,cue,string,cueRect,respRect,varargin)
+    DrawFormattedText(windowPtr,cue,'center', 'center',[],[],[],[],[],[],cueRect);
+    [~,~,~] =  DrawFormattedText(windowPtr,string, respRect(1), 'center',[],[],[],[],[],[],respRect);
+    [~, onset] = Screen('Flip', windowPtr);
+end
     
 end
 
