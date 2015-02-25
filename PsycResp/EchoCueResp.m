@@ -261,7 +261,7 @@ end
 
 function onset = dummy_draw(windowPtr,cue,string,cueRect,respRect,varargin)
     DrawFormattedText(windowPtr,cue,'center', 'center',[],[],[],[],[],[],cueRect);
-    [~,~,~] =  DrawFormattedText(windowPtr,string, respRect(1), 'center',[],[],[],[],[],[],respRect);
+    DrawFormattedText(windowPtr,string, respRect(1), 'center');
     [~, onset] = Screen('Flip', windowPtr);
 end
     
