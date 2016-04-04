@@ -60,41 +60,46 @@ function responses = getSubjectInfo(varargin)
         % to true
         if strcmp(types{i}, 'textinput')
             fields.(names{i}).handle = uicontrol(fig, props, 'Style', 'edit', 'String', fields.(names{i}).values);
-            if fields.(names{i}).validationFcn(fields.(names{i}).values)
-                set(fields.(names{i}).handle, 'UserData',struct('validInput', true));
-            end            
+            isvalid = fields.(names{i}).validationFcn(fields.(names{i}).values);
         elseif strcmp(types{i}, 'dropdown')
             fields.(names{i}).handle = uicontrol(fig, props, 'Style', 'popupmenu', 'String', fields.(names{i}).values, 'Value', 1);
-            if fields.(names{i}).validationFcn(getPopupString(fields.(names{i}).handle))
-                set(fields.(names{i}).handle, 'UserData',struct('validInput', true));
-            end           
+            isvalid = fields.(names{i}).validationFcn(getPopupString(fields.(names{i}).handle));
         else % The only alternative is checkbox   
             fields.(names{i}).handle = uicontrol(fig, props, 'Style', 'checkbox', 'String', fields.(names{i}).title, ...
                 'Val', fields.(names{i}).values, 'Position',[margin, height - offset - margin - check_size, width-2*margin, check_size]);
-            if fields.(names{i}).validationFcn(fields.(names{i}).values)
-                set(fields.(names{i}).handle, 'UserData',struct('validInput', true));
-            end          
+            isvalid = fields.(names{i}).validationFcn(fields.(names{i}).values);
         end
+        set(fields.(names{i}).handle, 'UserData', isvalid);
         offset = offset + (strcmp(types{i},'checkbox')*check_size) + (~strcmp(types{i},'checkbox')*text_size) + ...
             (~strcmp(types{i},'checkbox')*title_size);
     end
 
     % add cancel and run buttons
-    uicontrol(fig, 'Style','pushbutton', 'String', 'Run', 'Tag', 'RunBtn', 'Callback', @(~,~)  uiresume(gcbf), ...
-              'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, button_size]) 
+    run = uicontrol(fig, 'Style','pushbutton', 'String', 'Run', 'Tag', 'RunBtn', 'Callback', @(~,~)  uiresume(gcbf), ...
+              'Pos', [(width/2)+padding height-(height-10) ((width-2*margin)/2)-margin, button_size], ...
+              'Enable','off');
     uicontrol(fig, 'Style','pushbutton','String','Cancel','Tag','CancelBtn','Callback' , @(~,~) delete(gcbf) , ...
               'Pos', [margin height-(height-10) ((width-2*margin)/2)-padding, button_size])
 
-    % Add the fields info to the userdata of the parent object so we can look it up and update it as needed      
+    % Add the fields info to the userdata of the parent object
+    % Storing it here is useful so we can easily look it up and update it as needed
     set(fig, 'UserData', fields);
     
-    % Wait for input
-    set(fig,'Visible','on');
-    uiwait(fig);
+    % See if we should enable the run button by checking each fields UserData
+    % If all their values passed validation, then we enable it
+    if validateAllFields(fields)
+        set(run,'Enable','on');
+    end
+    set(fig,'Visible','on'); % Show the input dialog to the user
+    uiwait(fig);    % Wait for input
 
     % Parse input
     if ishghandle(fig)
-        responses = extractInput(get(fig, 'UserData'));
+        responses = struct;
+        allFields = extractInput(get(fig, 'UserData'));
+        for i = 1:length(names)
+            responses.(names{i}) = allFields.(names{i}).input;
+        end
         delete(fig);
     else
         responses = [];
@@ -113,6 +118,12 @@ function allFields = extractInput(allFields)
             allFields.(names{i}).input = get(allFields.(names{i}).handle,'Value');
         end
     end
+end
+
+function allValid = validateAllFields(allFields)
+    handles = structfun(@(s) s.handle, allFields, 'UniformOutput', false);
+    status = structfun(@(s) get(s, 'UserData'), handles, 'UniformOutput', false);
+    allValid = all(structfun(@(s) s == 1, status));
 end
 
 function interact(objectHandle, ~, currentField)
@@ -135,11 +146,10 @@ function interact(objectHandle, ~, currentField)
        set(titleHandle,'String', message);
        set(titleHandle,'Background','r');
     else
-       set(allFields.(currentField).handle, 'UserData',struct('validInput', true));
+       set(allFields.(currentField).handle, 'UserData', true);
        set(titleHandle,'String',allFields.(currentField).title);
        set(titleHandle,'Background',[.94 .94 .94]);
-       inputStatus = structfun(@(s) get(s, 'UserData'), structfun(@(s) s.handle, allFields, 'UniformOutput', false), 'UniformOutput', false);
-       if all(structfun(@(s) s.validInput, inputStatus));
+       if validateAllFields(allFields)
            set(findobj('Tag','RunBtn'),'Enable','on');
        end
     end
