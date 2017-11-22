@@ -81,15 +81,20 @@ end
         end
         
         if n <= length(answer)
+            if strcmp(answer(n), ' ')
+                VK_name = 'SPACE';
+            else
+                VK_name = upper(answer(n));
+            end
             WaitSecs('UntilTime', GetSecs + delay/10);
-            eval([ 'rob.keyPress(java.awt.event.KeyEvent.VK_', upper(answer(n)), ');' ]);
-            eval([ 'rob.keyRelease(java.awt.event.KeyEvent.VK_', upper(answer(n)), ');' ]);
+            eval([ 'rob.keyPress(java.awt.event.KeyEvent.VK_', VK_name, ');' ]);
+            eval([ 'rob.keyRelease(java.awt.event.KeyEvent.VK_', VK_name, ');' ]);
             n = n + 1;
 
         else
+            n = 1;            
             rob.keyPress(java.awt.event.KeyEvent.VK_ENTER);
             rob.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
-            n = 1;
         end
 
        [keys_pressed, press_times] = checkKeys(device);
